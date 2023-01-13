@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Data.String.Syntax
+      Data.String.Syntax.Interpolate
   other-modules:
       Paths_string_syntax
   hs-source-dirs:
@@ -34,6 +35,7 @@ library
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wnoncanonical-monad-instances
   build-depends:
       base >=4.14 && <5
+    , megaparsec ==9.*
     , text >=1.2.3.2 && <3
   default-language: Haskell2010
 
@@ -49,3 +51,21 @@ executable string-syntax
     , string-syntax
     , text >=1.2.3.2 && <3
   default-language: Haskell2010
+
+test-suite string-syntax-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      InterpolateTests
+      MultilineTests
+      Paths_string_syntax
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wnoncanonical-monad-instances -F -pgmF=string-syntax
+  build-depends:
+      base
+    , string-syntax
+    , tasty
+    , tasty-hunit
+  default-language: Haskell2010
+  build-tool-depends: string-syntax:string-syntax
