@@ -1,0 +1,110 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_call:
+
+jobs:
+  build_and_test:
+    strategy:
+      matrix:
+        stack_yaml:
+          - stack-ghc-9.0.yaml
+          - stack-ghc-9.2.yaml
+          - stack-ghc-9.4.yaml
+        include:
+          - stack_yaml: stack.yaml
+            latest: true
+
+    name: build_and_test (${{ matrix.stack_yaml }})
+    runs-on: ubuntu-latest
+    env:
+      STACK_YAML: ${{ matrix.stack_yaml }}
+
+    steps:
+      -
+        uses: actions/checkout@v3
+      -
+        uses: actions/cache@v3
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-cache-${{ hashFiles(matrix.stack_yaml, 'package.yaml') }}
+      -
+        name: Build + test
+        run: stack test
+      -
+        name: Check that files are unmodified
+        run: git diff --exit-code
+
+  cabal_test:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        uses: actions/checkout@v3
+      -
+        uses: haskell/actions/setup@v2
+      -
+        run: cabal update
+      -
+        run: cabal freeze
+      -
+        run: echo "CURR_MONTH=$(date +%B)" | tee -a "$GITHUB_ENV"
+      -
+        uses: actions/cache@v3
+        with:
+          path: ~/.cabal/store
+          key: ${{ runner.os }}-cabal_store-cache-${{ env.CURR_MONTH }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: |
+               ${{ runner.os }}-cabal_store-cache-${{ env.CURR_MONTH }}-
+      -
+        run:
+          cabal configure
+            --enable-tests
+            --test-show-details=streaming
+            --test-options="--color=always"
+      -
+        run: cabal v2-build
+      -
+        run: cabal v2-test
+
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      FOURMOLU_VERSION: '0.10.1.0'
+    steps:
+      -
+        uses: actions/checkout@v3
+      -
+        name: Install fourmolu
+        run: |
+          curl -sSL \
+            "https://github.com/fourmolu/fourmolu/releases/download/v${FOURMOLU_VERSION}/fourmolu-${FOURMOLU_VERSION}-linux-x86_64" \
+            -o /usr/local/bin/fourmolu
+          chmod +x /usr/local/bin/fourmolu
+      -
+        name: Run fourmolu
+        run: fourmolu -m check $(git ls-files '*.hs')
+
+  check_sdist:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        uses: actions/checkout@v3
+      -
+        uses: actions/cache@v3
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-check_sdist-${{ hashFiles('stack.yaml', 'package.yaml') }}
+      -
+        name: Strip unreleased section from CHANGELOG
+        run: sed -i -n '/^# Unreleased/d; /^# /,$p' CHANGELOG.md
+      -
+        name: Create sdist bundle
+        run: stack sdist --test-tarball --tar-dir .
+      -
+        uses: actions/upload-artifact@v3
+        with:
+          name: string-syntax-sdist
+          path: string-syntax-*.tar.gz

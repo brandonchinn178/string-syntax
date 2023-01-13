@@ -1,0 +1,51 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.1.
+--
+-- see: https://github.com/sol/hpack
+
+name:           string-syntax
+version:        0.1.0
+synopsis:       Preprocessor for enabling string-related syntax features.
+description:    Preprocessor for enabling string-related syntax features. See README.md for more details
+category:       Text
+homepage:       https://github.com/brandonchinn178/string-syntax#readme
+bug-reports:    https://github.com/brandonchinn178/string-syntax/issues
+author:         Brandon Chinn <brandonchinn178@gmail.com>
+maintainer:     Brandon Chinn <brandonchinn178@gmail.com>
+license:        BSD3
+license-file:   LICENSE.md
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/brandonchinn178/string-syntax
+
+library
+  exposed-modules:
+      Data.String.Syntax
+  other-modules:
+      Paths_string_syntax
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wnoncanonical-monad-instances
+  build-depends:
+      base >=4.14 && <5
+    , text >=1.2.3.2 && <3
+  default-language: Haskell2010
+
+executable string-syntax
+  main-is: Preprocessor.hs
+  other-modules:
+      Paths_string_syntax
+  hs-source-dirs:
+      exe
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wnoncanonical-monad-instances
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text >=1.2.3.2 && <3
+  default-language: Haskell2010

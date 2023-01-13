@@ -1,0 +1,36 @@
+name: string-syntax
+version: 0.1.0
+category: Text
+synopsis: Preprocessor for enabling string-related syntax features.
+description: Preprocessor for enabling string-related syntax features. See README.md for more details
+license: BSD3
+license-file: LICENSE.md
+author: Brandon Chinn <brandonchinn178@gmail.com>
+maintainer: Brandon Chinn <brandonchinn178@gmail.com>
+
+extra-source-files:
+  - README.md
+  - CHANGELOG.md
+
+github: brandonchinn178/string-syntax
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wnoncanonical-monad-instances
+
+library:
+  source-dirs: src
+  dependencies:
+    - base >= 4.14 && < 5
+    - text >= 1.2.3.2 && < 3
+
+executable:
+  source-dirs: exe
+  main: Preprocessor.hs
+  dependencies:
+    - base >= 4.14 && < 5
+    - string-syntax
+    - text >= 1.2.3.2 && < 3

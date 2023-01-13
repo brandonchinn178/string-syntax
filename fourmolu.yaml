@@ -1,0 +1,5 @@
+indentation: 2
+indent-wheres: true
+haddock-style: single-line
+haddock-style-module: multi-line-compact
+function-arrows: leading-args
