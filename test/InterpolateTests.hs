@@ -3,6 +3,8 @@ module InterpolateTests (tests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import qualified Data.String.Syntax.Interpolate as StringSyntax
+
 tests :: TestTree
 tests =
   testGroup "interpolation" $
@@ -21,4 +23,14 @@ tests =
               x + y = ${x + y}
               """
         s @?= "x = 1\ny = 2\nx + y = 3\n"
+    , testCase "works with nested string" $ do
+        let s = s"name = ${"Alice"}"
+        s @?= "name = Alice"
+    , testCase "works with nested interpolated string" $ do
+        let n = 12 :: Int
+            s = s"n = ${s"${n}" :: String}"
+        s @?= "n = 12"
     ]
+
+-- TODO: HTML interpolation
+-- TODO: SqlQuery interpolation
