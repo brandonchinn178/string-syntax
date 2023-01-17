@@ -5,6 +5,7 @@ module Data.String.Syntax.Internal.PostProcess (
   postProcessFile,
 ) where
 
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -27,11 +28,18 @@ postProcessCode = Text.concat . map fromCodeChunk . codeChunks
 
 postProcessMultiline :: StringLiteral -> StringLiteral
 postProcessMultiline =
-  mapRaw (Text.replace "\n" "\\n")
+  escapeNewlines
     . removeInitialNewline
     . removeCommonWhitespacePrefix
     . collapseLineContinuations
   where
+    escapeNewlines = mapRaw (Text.replace "\n" "\\n")
+    removeInitialNewline = mapRawFirst (\s -> fromMaybe s $ Text.stripPrefix "\n" s)
+
+    -- TODO
+    collapseLineContinuations lit = lit
+
+    -- apply the given function to all raw string chunks
     mapRaw f = \case
       RawStringLiteral s -> RawStringLiteral (f s)
       InterpolatedStringLiteral chunks ->
@@ -41,19 +49,49 @@ postProcessMultiline =
           -- code happens in convertStringLiteral
           InterpolatedStringChunk code -> InterpolatedStringChunk code
 
-    removeInitialNewline lit =
-      let strip s = fromMaybe s $ Text.stripPrefix "\n" s
-       in case lit of
-            RawStringLiteral s -> RawStringLiteral (strip s)
-            InterpolatedStringLiteral chunks ->
-              InterpolatedStringLiteral $
-                case chunks of
-                  (RawStringChunk x : xs) -> RawStringChunk (strip x) : xs
-                  _ -> chunks
+    -- same as mapRaw, except only apply the function to the first string chunk
+    mapRawFirst f = \case
+      RawStringLiteral s -> RawStringLiteral (f s)
+      InterpolatedStringLiteral chunks ->
+        InterpolatedStringLiteral $
+          case chunks of
+            (RawStringChunk x : xs) -> RawStringChunk (f x) : xs
+            _ -> chunks
 
-    removeCommonWhitespacePrefix lit = lit
+removeCommonWhitespacePrefix :: StringLiteral -> StringLiteral
+removeCommonWhitespacePrefix = \case
+  RawStringLiteral str ->
+    let
+      strLines = Text.splitOn "\n" str
+      commonPrefix = getCommonPrefix strLines
+     in
+      RawStringLiteral
+        . Text.intercalate "\n"
+        . map (rmSpace commonPrefix)
+        $ strLines
+  InterpolatedStringLiteral chunks ->
+    -- TODO
+    InterpolatedStringLiteral chunks
+  where
+    isIndent c = c == ' ' || c == '\t'
 
-    collapseLineContinuations lit = lit
+    getCommonPrefix strLines =
+      let excludeLines =
+            filter (not . Text.all isIndent) -- ignore lines that are all whitespace
+              . drop 1 -- ignore everything before first newline (i.e. the first line in calculation)
+       in case NonEmpty.nonEmpty (excludeLines strLines) of
+            Nothing -> 0
+            Just strLines' ->
+              minimum $ NonEmpty.map (Text.length . Text.takeWhile isIndent) strLines'
+
+    rmSpace n s =
+      case Text.uncons s of
+        _ | n <= 0 -> s
+        Just (' ', s') -> rmSpace (n - 1) s'
+        Just ('\t', s')
+          | n >= 8 -> rmSpace (n - 8) s'
+          | otherwise -> Text.replicate (8 - n) " " <> s'
+        _ -> s
 
 convertStringLiteral :: StringLiteral -> Text
 convertStringLiteral = \case
