@@ -46,6 +46,7 @@ tests:
       - string-syntax
       - tasty
       - tasty-hunit
+      - text
 
     ghc-options: -F -pgmF=string-syntax
     verbatim:
