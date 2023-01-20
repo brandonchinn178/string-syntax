@@ -45,16 +45,18 @@ instance (Interpolate s, InterpolateValue s a) => InterpolateValue s [a] where
   interpolatePrec _ as = go True as . interpolatePrec 0 "]"
     where
       go _ [] = id
-      go isStart (x:xs) =
+      go isStart (x : xs) =
         interpolatePrec 0 (if isStart then "[" else ", ")
-        . interpolatePrec 0 x
-        . go False xs
+          . interpolatePrec 0 x
+          . go False xs
 
 #define GEN_INTERPOLATE(TYPE) \
   instance (Interpolate s, InterpolateValue s String) => InterpolateValue s TYPE where \
     interpolatePrec p = interpolatePrec p . show
 
+{- FOURMOLU_DISABLE -}
 GEN_INTERPOLATE(Bool)
 GEN_INTERPOLATE(Int)
 GEN_INTERPOLATE(Double)
 GEN_INTERPOLATE(Float)
+{- FOURMOLU_ENABLE -}

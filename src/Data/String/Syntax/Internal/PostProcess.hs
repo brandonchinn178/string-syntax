@@ -113,12 +113,14 @@ breakInterpolatedLines = map splitPrefix . splitLines Seq.empty
       [] -> [toList currLine]
       chunk : rest ->
         case chunk of
-          RawStringChunk s | l : ls <- Text.splitOn "\n" s ->
-            let
-              (midLines, lastLine) = splitLast (map RawStringChunk ls)
-              thisLine = toList (currLine Seq.|> RawStringChunk l)
-              midLineChunks = map (: []) midLines
-             in thisLine : midLineChunks ++ splitLines (Seq.fromList lastLine) rest
+          RawStringChunk s
+            | l : ls <- Text.splitOn "\n" s ->
+                let
+                  (midLines, lastLine) = splitLast (map RawStringChunk ls)
+                  thisLine = toList (currLine Seq.|> RawStringChunk l)
+                  midLineChunks = map (: []) midLines
+                 in
+                  thisLine : midLineChunks ++ splitLines (Seq.fromList lastLine) rest
           _ -> splitLines (currLine Seq.|> chunk) rest
 
     splitPrefix =

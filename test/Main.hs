@@ -1,7 +1,7 @@
 import Test.Tasty
 
-import qualified MultilineTests
 import qualified InterpolateTests
+import qualified MultilineTests
 
 main :: IO ()
 main =

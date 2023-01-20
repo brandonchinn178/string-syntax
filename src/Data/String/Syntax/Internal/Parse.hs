@@ -45,18 +45,20 @@ parseHaskellFile = HaskellFile <$> parseHaskellCode <* eof
 parseHaskellCode :: Parser HaskellCode
 parseHaskellCode = HaskellCode <$> many parseCodeChunk
   where
-    parseCodeChunk = choice
-      [ parseStringLiteral
-      , fmap UnparsedSource $ takeWhile1Not ['s'] ['"']
-      ]
+    parseCodeChunk =
+      choice
+        [ parseStringLiteral
+        , fmap UnparsedSource $ takeWhile1Not ['s'] ['"']
+        ]
 
 parseStringLiteral :: Parser HaskellCodeChunk
-parseStringLiteral = choice
-  [ parseStringLiteral' MultiLine NoInterpolate
-  , parseStringLiteral' MultiLine Interpolate
-  , parseStringLiteral' SingleLine Interpolate
-  , parseStringLiteral' SingleLine NoInterpolate
-  ]
+parseStringLiteral =
+  choice
+    [ parseStringLiteral' MultiLine NoInterpolate
+    , parseStringLiteral' MultiLine Interpolate
+    , parseStringLiteral' SingleLine Interpolate
+    , parseStringLiteral' SingleLine NoInterpolate
+    ]
   where
     parseStringLiteral' multi interpolate = do
       let
@@ -80,36 +82,39 @@ parseStringLiteral = choice
               RawStringLiteral . Text.concat <$> many parseRawStringChunk
 
 parseRawStringChunkUntil :: Parser delim -> Parser Text
-parseRawStringChunkUntil parseDelim = choice
-  [ do
-      esc <- single '\\'
-      c <- anySingle
-      pure $ Text.pack [esc, c]
-  , notFollowedBy parseDelim *> takeWhile1P Nothing (== '"')
-  , takeWhile1P Nothing (`notElem` ['\\', '"', '$'])
-  ]
+parseRawStringChunkUntil parseDelim =
+  choice
+    [ do
+        esc <- single '\\'
+        c <- anySingle
+        pure $ Text.pack [esc, c]
+    , notFollowedBy parseDelim *> takeWhile1P Nothing (== '"')
+    , takeWhile1P Nothing (`notElem` ['\\', '"', '$'])
+    ]
 
 parseInterpolatedStringChunk :: Parser HaskellCode
 parseInterpolatedStringChunk =
   between (chunk "${") (chunk "}") $
     HaskellCode . concat <$> many parseCodeChunk
   where
-    parseCodeChunk = choice
-      [ (: []) <$> parseStringLiteral
-      , do
-          begin <- chunk "{"
-          chunks <- many parseCodeChunk
-          end <- chunk "}"
-          pure $ [UnparsedSource begin] <> concat chunks <> [UnparsedSource end]
-      , (: []) . UnparsedSource <$> takeWhile1Not ['s'] ['"', '{', '}']
-      ]
+    parseCodeChunk =
+      choice
+        [ (: []) <$> parseStringLiteral
+        , do
+            begin <- chunk "{"
+            chunks <- many parseCodeChunk
+            end <- chunk "}"
+            pure $ [UnparsedSource begin] <> concat chunks <> [UnparsedSource end]
+        , (: []) . UnparsedSource <$> takeWhile1Not ['s'] ['"', '{', '}']
+        ]
 
 -- | @takeWhile1Not ['a'] ['b']@ parses an optional 'a' at the beginning and
 -- any characters afterwards not matching 'a' or 'b'. Fails if parses nothing.
 takeWhile1Not :: [Char] -> [Char] -> Parser Text
-takeWhile1Not startNoEnd noStartNoEnd = choice
-  [ Text.cons <$> oneOf startNoEnd <*> takeWhileP Nothing (`notElem` noEnd)
-  , takeWhile1P Nothing (`notElem` noEnd)
-  ]
+takeWhile1Not startNoEnd noStartNoEnd =
+  choice
+    [ Text.cons <$> oneOf startNoEnd <*> takeWhileP Nothing (`notElem` noEnd)
+    , takeWhile1P Nothing (`notElem` noEnd)
+    ]
   where
     noEnd = startNoEnd ++ noStartNoEnd

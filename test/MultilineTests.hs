@@ -1,3 +1,5 @@
+{- FOURMOLU_DISABLE -}
+
 module MultilineTests (tests) where
 
 import Test.Tasty

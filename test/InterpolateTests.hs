@@ -1,3 +1,5 @@
+{- FOURMOLU_DISABLE -}
+
 module InterpolateTests (tests) where
 
 import Test.Tasty
