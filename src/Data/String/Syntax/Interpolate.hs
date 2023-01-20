@@ -15,7 +15,7 @@ import Data.Text (Text)
 
 class Interpolate s where
   interpolateRaw :: String -> s -> s
-  default interpolateRaw :: (IsString s, Monoid s) => String -> s -> s
+  default interpolateRaw :: (IsString s, Semigroup s) => String -> s -> s
   interpolateRaw s = (fromString s <>)
 
   interpolateEmpty :: s
@@ -29,7 +29,7 @@ class Interpolate s => InterpolateValue s a where
   interpolate a = interpolatePrec 0 a interpolateEmpty
 
   interpolatePrec :: Int -> a -> s -> s
-  default interpolatePrec :: Monoid s => Int -> a -> s -> s
+  default interpolatePrec :: Semigroup s => Int -> a -> s -> s
   interpolatePrec _ a s = interpolate a <> s
 
 instance Interpolate String
@@ -51,7 +51,7 @@ instance (Interpolate s, InterpolateValue s a) => InterpolateValue s [a] where
           . go False xs
 
 #define GEN_INTERPOLATE(TYPE) \
-  instance (Interpolate s, InterpolateValue s String) => InterpolateValue s TYPE where \
+  instance {-# OVERLAPPABLE #-} (Interpolate s, InterpolateValue s String) => InterpolateValue s TYPE where \
     interpolatePrec p = interpolatePrec p . show
 
 {- FOURMOLU_DISABLE -}

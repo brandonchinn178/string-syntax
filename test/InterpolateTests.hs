@@ -72,6 +72,41 @@ tests =
               , "</html>"
               ]
         result @?= expected
+    , testCase "interpolates SQL" $ do
+        let
+          name = "Alice"
+          age = 30
+          active = False
+          sqlInjection = "TRUE; DELETE FROM user"
+          sqlSafe = "(foo = 'bar' OR bar = 'foo')" :: SqlQuery
+          result =
+            s"""
+            SELECT * FROM user
+            WHERE
+              name = ${name} AND
+              age = ${age} AND
+              active = ${active} AND
+              failedInjection = ${sqlInjection} AND
+              ${sqlSafe}
+            """
+          expected =
+            SqlQuery
+              ( Text.unlines
+                  [ "SELECT * FROM user"
+                  , "WHERE"
+                  , "  name = ? AND"
+                  , "  age = ? AND"
+                  , "  active = ? AND"
+                  , "  failedInjection = ? AND"
+                  , "  (foo = 'bar' OR bar = 'foo')"
+                  ]
+              )
+              [ SqlString name
+              , SqlInt age
+              , SqlBool active
+              , SqlString sqlInjection
+              ]
+        result @?= expected
     ]
 
 {----- HTML interpolation -----}
@@ -94,4 +129,51 @@ instance {-# OVERLAPPING #-} InterpolateValue HTML String where
     where
       escape = Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
 
--- TODO: SqlQuery interpolation
+{----- SqlQuery interpolation -----}
+
+data SqlValue
+  = SqlString Text
+  | SqlInt Int
+  | SqlBool Bool
+  | SqlList [SqlValue]
+  deriving (Show, Eq)
+
+class ToSqlValue a where
+  toSqlValue :: a -> SqlValue
+instance {-# OVERLAPPING #-} ToSqlValue String where
+  toSqlValue = SqlString . Text.pack
+instance ToSqlValue Text where
+  toSqlValue = SqlString
+instance ToSqlValue Int where
+  toSqlValue = SqlInt
+instance ToSqlValue Bool where
+  toSqlValue = SqlBool
+instance ToSqlValue a => ToSqlValue [a] where
+  toSqlValue = SqlList . map toSqlValue
+
+data SqlQuery = SqlQuery Text [SqlValue]
+  deriving (Show, Eq)
+
+instance IsString SqlQuery where
+  fromString s = SqlQuery (Text.pack s) []
+instance Semigroup SqlQuery where
+  SqlQuery s vs <> SqlQuery s' vs' = SqlQuery (s <> s') (vs <> vs')
+instance Monoid SqlQuery where
+  mempty = SqlQuery "" []
+
+instance Interpolate SqlQuery
+
+instance {-# OVERLAPPING #-} InterpolateValue SqlQuery SqlQuery where
+  interpolatePrec _ = (<>)
+
+-- instance {-# OVERLAPPING #-} ToSqlValue a => InterpolateValue SqlQuery a where
+--   interpolate a = SqlQuery "?" [toSqlValue a]
+
+instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Int where
+  interpolate a = SqlQuery "?" [toSqlValue a]
+instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Bool where
+  interpolate a = SqlQuery "?" [toSqlValue a]
+instance {-# OVERLAPPING #-} InterpolateValue SqlQuery String where
+  interpolate a = SqlQuery "?" [toSqlValue a]
+instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Text where
+  interpolate a = SqlQuery "?" [toSqlValue a]
