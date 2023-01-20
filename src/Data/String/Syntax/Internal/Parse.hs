@@ -2,18 +2,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.String.Syntax.Internal.Parse (
+  HaskellFile (..),
   HaskellCode (..),
   HaskellCodeChunk (..),
   StringLiteral (..),
   InterpolatedStringChunk (..),
   MultiFlag (..),
-  parseHaskellCode,
+  parseHaskellFile,
 ) where
 
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Void (Void)
 import Text.Megaparsec
+
+newtype HaskellFile = HaskellFile HaskellCode
 
 newtype HaskellCode = HaskellCode {codeChunks :: [HaskellCodeChunk]}
 
@@ -35,6 +38,9 @@ data InterpolateFlag = Interpolate | NoInterpolate
 {----- Parser -----}
 
 type Parser = Parsec Void Text
+
+parseHaskellFile :: Parser HaskellFile
+parseHaskellFile = HaskellFile <$> parseHaskellCode <* eof
 
 parseHaskellCode :: Parser HaskellCode
 parseHaskellCode = HaskellCode <$> many parseCodeChunk

@@ -5,16 +5,16 @@ module Data.String.Syntax (processFile) where
 
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Text.Megaparsec (eof, errorBundlePretty, runParser)
+import Text.Megaparsec (errorBundlePretty, runParser)
 
-import Data.String.Syntax.Internal.Parse (parseHaskellCode)
-import Data.String.Syntax.Internal.PostProcess (postProcessCode)
+import Data.String.Syntax.Internal.Parse (parseHaskellFile)
+import Data.String.Syntax.Internal.PostProcess (postProcessFile)
 
 processFile :: FilePath -> Text -> IO Text
 processFile path file =
-  case runParser (parseHaskellCode <* eof) path file of
+  case runParser parseHaskellFile path file of
     Left e -> errorWithoutStackTrace $ errorBundlePretty e
-    Right code -> pure . addLinePragma . postProcessCode $ code
+    Right parsedFile -> pure . addLinePragma . postProcessFile $ parsedFile
   where
     addLine line f = line <> "\n" <> f
     -- this is needed to tell GHC to use original path in error messages

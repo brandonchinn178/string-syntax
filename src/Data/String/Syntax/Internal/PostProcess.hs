@@ -1,13 +1,18 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.String.Syntax.Internal.PostProcess (postProcessCode) where
+module Data.String.Syntax.Internal.PostProcess (
+  postProcessFile,
+) where
 
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
 
 import Data.String.Syntax.Internal.Parse
+
+postProcessFile :: HaskellFile -> Text
+postProcessFile (HaskellFile code) = postProcessCode code
 
 postProcessCode :: HaskellCode -> Text
 postProcessCode = Text.concat . map fromCodeChunk . codeChunks
