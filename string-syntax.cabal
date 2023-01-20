@@ -27,6 +27,8 @@ source-repository head
 library
   exposed-modules:
       Data.String.Syntax
+      Data.String.Syntax.Internal.Parse
+      Data.String.Syntax.Internal.PostProcess
       Data.String.Syntax.Interpolate
   other-modules:
       Paths_string_syntax
