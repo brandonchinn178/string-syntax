@@ -5,9 +5,11 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module InterpolateTests (tests) where
 
+import Data.Proxy (Proxy (..))
 import Data.String (IsString (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -16,6 +18,7 @@ import Test.Tasty.HUnit
 
 import Data.String.Syntax.Interpolate (
   Interpolate (..),
+  InterpolateDefault,
   InterpolateOverride,
   InterpolateValue (..),
   InterpolateValueFlag,
@@ -47,6 +50,9 @@ tests =
         let n = 12 :: Int
             s = s"n = ${s"${n}" :: String}" :: String
         s @?= "n = 12"
+    , testCase "works with nested braces" $ do
+        let s = s"person = ${Person{personName = "Alice"}}" :: String
+        s @?= "person = <Person Alice>"
     , testCase "interpolates HTML" $ do
         let
           name = "Alice" :: String
@@ -115,6 +121,18 @@ tests =
               ]
         result @?= expected
     ]
+
+{----- Person -----}
+
+data Person = Person { personName :: String }
+
+instance
+  (Interpolate s, InterpolateValue InterpolateOverride s String) =>
+  InterpolateValue InterpolateDefault s Person
+  where
+    interpolatePrec _ p (Person name) = interpolatePrec proxy p (s"<Person ${name}>" :: String)
+      where
+        proxy = Proxy :: Proxy InterpolateOverride
 
 {----- HTML interpolation -----}
 

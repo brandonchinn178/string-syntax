@@ -88,10 +88,10 @@ class Interpolate s => InterpolateValueRunner s a where
 --
 -- @
 -- instance
---   InterpolateValue InterpolateDefault s String =>
+--   (Interpolate s, InterpolateValue InterpolateOverride s String) =>
 --   InterpolateValue InterpolateDefault s MyUser
 --   where
---     interpolatePrec p = interpolatePrec p . show
+--     interpolatePrec _ p = interpolatePrec (Proxy :: Proxy InterpolateOverride) p . show
 -- @
 class Interpolate s => InterpolateValue flag s a where
   {-# MINIMAL interpolate | interpolatePrec #-}
