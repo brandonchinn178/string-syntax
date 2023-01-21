@@ -158,4 +158,4 @@ convertStringLiteral = \case
   where
     postProcessChunk = \case
       RawStringChunk s -> "StringSyntax.interpolateRaw \"" <> s <> "\""
-      InterpolatedStringChunk code -> "StringSyntax.interpolatePrec 0 (" <> postProcessCode code <> ")"
+      InterpolatedStringChunk code -> "StringSyntax.doInterpolate (" <> postProcessCode code <> ")"
