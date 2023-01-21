@@ -53,6 +53,9 @@ tests =
     , testCase "works with nested braces" $ do
         let s = s"person = ${Person{personName = "Alice"}}" :: String
         s @?= "person = <Person Alice>"
+    , testCase "escapes interpolation" $ do
+        let s = s"n = \${n}" :: String
+        s @?= "n = ${n}"
     , testCase "interpolates HTML" $ do
         let
           name = "Alice" :: String

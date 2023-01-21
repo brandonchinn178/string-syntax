@@ -66,7 +66,7 @@ parseStringLiteral =
           case multi of
             MultiLine -> "\"\"\""
             SingleLine -> "\""
-        parseRawStringChunk = parseRawStringChunkUntil (chunk delim)
+        parseRawStringChunk = parseRawStringChunkUntil interpolate (chunk delim)
 
       fmap (StringLiteral multi) $
         case interpolate of
@@ -81,16 +81,21 @@ parseStringLiteral =
             between (chunk delim) (chunk delim) $
               RawStringLiteral . Text.concat <$> many parseRawStringChunk
 
-parseRawStringChunkUntil :: Parser delim -> Parser Text
-parseRawStringChunkUntil parseDelim =
+parseRawStringChunkUntil :: InterpolateFlag -> Parser delim -> Parser Text
+parseRawStringChunkUntil interpolate parseDelim =
   choice
     [ do
         esc <- single '\\'
         c <- anySingle
         pure $ Text.pack [esc, c]
     , notFollowedBy parseDelim *> takeWhile1P Nothing (== '"')
-    , takeWhile1P Nothing (`notElem` ['\\', '"', '$'])
+    , takeWhile1P Nothing (`notElem` ['\\', '"'] <> interpolateChar)
     ]
+  where
+    interpolateChar =
+      case interpolate of
+        Interpolate -> ['$']
+        NoInterpolate -> []
 
 parseInterpolatedStringChunk :: Parser HaskellCode
 parseInterpolatedStringChunk =

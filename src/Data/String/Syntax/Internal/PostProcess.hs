@@ -157,5 +157,5 @@ convertStringLiteral = \case
     Text.intercalate " . " (map postProcessChunk chunks) <> " $ StringSyntax.interpolateEmpty"
   where
     postProcessChunk = \case
-      RawStringChunk s -> "StringSyntax.interpolateRaw \"" <> s <> "\""
+      RawStringChunk s -> "StringSyntax.interpolateRaw \"" <> Text.replace "\\$" "$" s <> "\""
       InterpolatedStringChunk code -> "StringSyntax.doInterpolate (" <> postProcessCode code <> ")"
