@@ -1,5 +1,7 @@
 {- FOURMOLU_DISABLE -}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -12,7 +14,12 @@ import qualified Data.Text as Text
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Data.String.Syntax.Interpolate (Interpolate (..), InterpolateValue (..))
+import Data.String.Syntax.Interpolate (
+  Interpolate (..),
+  InterpolateOverride,
+  InterpolateValue (..),
+  InterpolateValueFlag,
+ )
 import qualified Data.String.Syntax.Interpolate as StringSyntax
 
 tests :: TestTree
@@ -121,11 +128,13 @@ instance Interpolate HTML where
   interpolateRaw s (HTML t) = HTML (Text.pack s <> t)
   interpolateEmpty = HTML ""
 
-instance InterpolateValue HTML HTML where
-  interpolatePrec _ (HTML s) (HTML t) = HTML (s <> t)
+instance InterpolateValueFlag HTML HTML InterpolateOverride
+instance InterpolateValue InterpolateOverride HTML HTML where
+  interpolatePrec _ _ (HTML s) (HTML t) = HTML (s <> t)
 
-instance {-# OVERLAPPING #-} InterpolateValue HTML String where
-  interpolatePrec _ s (HTML t) = HTML $ escape (Text.pack s) <> t
+instance InterpolateValueFlag HTML String InterpolateOverride
+instance InterpolateValue InterpolateOverride HTML String where
+  interpolatePrec _ _ s (HTML t) = HTML $ escape (Text.pack s) <> t
     where
       escape = Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
 
@@ -163,17 +172,14 @@ instance Monoid SqlQuery where
 
 instance Interpolate SqlQuery
 
-instance {-# OVERLAPPING #-} InterpolateValue SqlQuery SqlQuery where
-  interpolatePrec _ = (<>)
+instance InterpolateValueFlag SqlQuery SqlQuery InterpolateOverride
+instance InterpolateValue InterpolateOverride SqlQuery SqlQuery where
+  interpolatePrec _ _ = (<>)
 
--- instance {-# OVERLAPPING #-} ToSqlValue a => InterpolateValue SqlQuery a where
---   interpolate a = SqlQuery "?" [toSqlValue a]
-
-instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Int where
-  interpolate a = SqlQuery "?" [toSqlValue a]
-instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Bool where
-  interpolate a = SqlQuery "?" [toSqlValue a]
-instance {-# OVERLAPPING #-} InterpolateValue SqlQuery String where
-  interpolate a = SqlQuery "?" [toSqlValue a]
-instance {-# OVERLAPPING #-} InterpolateValue SqlQuery Text where
-  interpolate a = SqlQuery "?" [toSqlValue a]
+instance InterpolateValueFlag SqlQuery Int InterpolateOverride
+instance InterpolateValueFlag SqlQuery Bool InterpolateOverride
+instance InterpolateValueFlag SqlQuery Text InterpolateOverride
+instance InterpolateValueFlag SqlQuery String InterpolateOverride
+instance InterpolateValueFlag SqlQuery a InterpolateOverride => InterpolateValueFlag SqlQuery [a] InterpolateOverride
+instance {-# OVERLAPPABLE #-} ToSqlValue a => InterpolateValue InterpolateOverride SqlQuery a where
+  interpolate _ a = SqlQuery "?" [toSqlValue a]
