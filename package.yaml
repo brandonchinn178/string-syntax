@@ -1,8 +1,8 @@
 name: string-syntax
 version: 0.1.0
 category: Text
-synopsis: Preprocessor for enabling string-related syntax features.
-description: Preprocessor for enabling string-related syntax features. See README.md for more details
+synopsis: Prototype for string interpolation.
+description: Prototype for string interpolation. See README.md for more details
 license: BSD3
 license-file: LICENSE.md
 author: Brandon Chinn <brandonchinn178@gmail.com>
@@ -10,7 +10,6 @@ maintainer: Brandon Chinn <brandonchinn178@gmail.com>
 
 extra-source-files:
   - README.md
-  - CHANGELOG.md
 
 github: brandonchinn178/string-syntax
 
@@ -24,32 +23,18 @@ ghc-options:
 library:
   source-dirs: src
   dependencies:
-    - base >= 4.14 && < 5
-    - containers >= 0.6.2.1 && < 1
-    - megaparsec >= 9 && < 10
-    - text >= 1.2.3.2 && < 3
+    - base
+    - containers
+    - megaparsec
+    - text
+    - template-haskell
+  language: GHC2021
 
 executable:
   source-dirs: exe
   main: Preprocessor.hs
   dependencies:
-    - base >= 4.14 && < 5
+    - base
     - string-syntax
-    - text >= 1.2.3.2 && < 3
-
-tests:
-  string-syntax-test:
-    source-dirs: test
-    main: Main.hs
-    dependencies:
-      - base
-      - string-syntax
-      - tasty
-      - tasty-hunit
-      - text
-
-    ghc-options: -F -pgmF=string-syntax
-    verbatim:
-      # https://github.com/sol/hpack/issues/516
-      build-tool-depends:
-        string-syntax:string-syntax
+    - text
+  language: GHC2021

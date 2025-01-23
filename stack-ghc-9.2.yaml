@@ -1,4 +1,0 @@
-resolver: lts-20.6
-
-ghc-options:
-  '$locals': -Werror

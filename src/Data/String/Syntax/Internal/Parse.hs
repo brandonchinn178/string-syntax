@@ -1,87 +1,105 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.String.Syntax.Internal.Parse (
-  HaskellFile (..),
+  DelimMarker (..),
   HaskellCode (..),
   HaskellCodeChunk (..),
-  StringLiteral (..),
-  InterpolatedStringChunk (..),
-  MultiFlag (..),
+  HaskellCodeSrc,
   parseHaskellFile,
 ) where
 
+import Control.Monad (mzero, when)
+import Data.Char (isSpace)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Void (Void)
 import Text.Megaparsec
+import Text.Megaparsec.Char
 
-newtype HaskellFile = HaskellFile HaskellCode
+data DelimMarker = OnlyDelim String | AnyDelim
 
-newtype HaskellCode = HaskellCode {codeChunks :: [HaskellCodeChunk]}
+newtype HaskellCode = HaskellCode [HaskellCodeChunk]
+  deriving (Show)
 
 data HaskellCodeChunk
-  = UnparsedSource Text
-  | StringLiteral MultiFlag StringLiteral
+  = UnparsedSource HaskellCodeSrc
+  | InterpolatedString Text [Either Text HaskellCodeSrc]
+  deriving (Show)
 
-data StringLiteral
-  = RawStringLiteral Text
-  | InterpolatedStringLiteral [InterpolatedStringChunk]
+type HaskellCodeSrc = Text
 
-data InterpolatedStringChunk
-  = RawStringChunk Text
-  | InterpolatedStringChunk HaskellCode
-
-data MultiFlag = MultiLine | SingleLine
-data InterpolateFlag = Interpolate | NoInterpolate
+parseHaskellFile :: DelimMarker -> FilePath -> Text -> IO HaskellCode
+parseHaskellFile delim path file =
+  case runParser (parseHaskellCode delim <* eof) path file of
+    Left e -> errorWithoutStackTrace $ errorBundlePretty e
+    Right parsedFile -> pure parsedFile
 
 {----- Parser -----}
 
 type Parser = Parsec Void Text
 
-parseHaskellFile :: Parser HaskellFile
-parseHaskellFile = HaskellFile <$> parseHaskellCode <* eof
-
-parseHaskellCode :: Parser HaskellCode
-parseHaskellCode = HaskellCode <$> many parseCodeChunk
+parseHaskellCode :: DelimMarker -> Parser HaskellCode
+parseHaskellCode delim = HaskellCode <$> parseCodeChunks
   where
+    parseCodeChunks = concat <$> many parseCodeChunk
+
     parseCodeChunk =
       choice
-        [ parseStringLiteral
-        , fmap UnparsedSource $ takeWhile1Not ['s'] ['"']
+        [ do
+            chunks <- between (string "(") (string ")") parseCodeChunks
+            pure $ [UnparsedSource "("] <> chunks <> [UnparsedSource ")"]
+        , (:[]) <$> parseStringLiteral delim
+        , do
+            -- consume any leading space
+            spaces1 <- takeWhileP Nothing isSpace
+            -- consume characters
+            src <- takeWhileP Nothing (\c -> c `notElem` [' ', '(', ')'])
+            -- consume any trailing space
+            spaces2 <- takeWhileP Nothing isSpace
+            -- if we didn't consume anything, explicitly fail
+            when (Text.null spaces1 && Text.null src && Text.null spaces2) mzero
+            -- then stop, so that we can check for any potential `ident"` tokens
+            pure [UnparsedSource $ spaces1 <> src <> spaces2]
         ]
 
-parseStringLiteral :: Parser HaskellCodeChunk
-parseStringLiteral =
+parseStringLiteral :: DelimMarker -> Parser HaskellCodeChunk
+parseStringLiteral delim =
   choice
-    [ parseStringLiteral' MultiLine NoInterpolate
-    , parseStringLiteral' MultiLine Interpolate
-    , parseStringLiteral' SingleLine Interpolate
-    , parseStringLiteral' SingleLine NoInterpolate
+    [ try $ parseStringLiteral' multi interpolate
+    | multi <- [True, False]
+    , interpolate <- [False, True]
     ]
   where
     parseStringLiteral' multi interpolate = do
       let
-        delim =
-          case multi of
-            MultiLine -> "\"\"\""
-            SingleLine -> "\""
-        parseRawStringChunk = parseRawStringChunkUntil interpolate (chunk delim)
+        quotes = if multi then "\"\"\"" else "\""
+        parseRawStringChunk = parseRawStringChunkUntil interpolate (chunk quotes)
 
-      fmap (StringLiteral multi) $
-        case interpolate of
-          Interpolate -> do
-            between (chunk ("s" <> delim)) (chunk delim) $
-              fmap InterpolatedStringLiteral . many $
-                choice
-                  [ InterpolatedStringChunk <$> parseInterpolatedStringChunk
-                  , RawStringChunk <$> parseRawStringChunk
-                  ]
-          NoInterpolate -> do
-            between (chunk delim) (chunk delim) $
-              RawStringLiteral . Text.concat <$> many parseRawStringChunk
+      if interpolate
+        then do
+          var <-
+            case delim of
+              OnlyDelim s -> string (Text.pack s)
+              AnyDelim -> parseVar
 
-parseRawStringChunkUntil :: InterpolateFlag -> Parser delim -> Parser Text
+          parts <-
+            between (chunk quotes) (chunk quotes) $
+              many . choice $
+                [ Right <$> parseInterpolatedStringChunk
+                , Left <$> parseRawStringChunk
+                ]
+
+          -- TODO: normalize multiline strings
+
+          pure $ InterpolatedString var parts
+        else do
+          parts <-
+            between (chunk quotes) (chunk quotes) $
+              many parseRawStringChunk
+
+          pure . UnparsedSource $ quotes <> Text.concat parts <> quotes
+
+parseRawStringChunkUntil :: Bool -> Parser delim -> Parser Text
 parseRawStringChunkUntil interpolate parseDelim =
   choice
     [ do
@@ -92,34 +110,24 @@ parseRawStringChunkUntil interpolate parseDelim =
     , takeWhile1P Nothing (`notElem` ['\\', '"'] <> interpolateChar)
     ]
   where
-    interpolateChar =
-      case interpolate of
-        Interpolate -> ['$']
-        NoInterpolate -> []
+    interpolateChar = if interpolate then ['$'] else []
 
-parseInterpolatedStringChunk :: Parser HaskellCode
+parseInterpolatedStringChunk :: Parser HaskellCodeSrc
 parseInterpolatedStringChunk =
   between (chunk "${") (chunk "}") $
-    HaskellCode . concat <$> many parseCodeChunk
-  where
-    parseCodeChunk =
-      choice
-        [ (: []) <$> parseStringLiteral
-        , do
-            begin <- chunk "{"
-            chunks <- many parseCodeChunk
-            end <- chunk "}"
-            pure $ [UnparsedSource begin] <> concat chunks <> [UnparsedSource end]
-        , (: []) . UnparsedSource <$> takeWhile1Not ['s'] ['"', '{', '}']
-        ]
+    takeWhile1P Nothing (`notElem` ['}'])
 
--- | @takeWhile1Not ['a'] ['b']@ parses an optional 'a' at the beginning and
--- any characters afterwards not matching 'a' or 'b'. Fails if parses nothing.
-takeWhile1Not :: [Char] -> [Char] -> Parser Text
-takeWhile1Not startNoEnd noStartNoEnd =
-  choice
-    [ Text.cons <$> oneOf startNoEnd <*> takeWhileP Nothing (`notElem` noEnd)
-    , takeWhile1P Nothing (`notElem` noEnd)
-    ]
+parseVar :: Parser Text
+parseVar = do
+  mods <- many parseModDot
+  var <- parseUnqual
+  pure $ Text.intercalate "." (mods <> [var])
   where
-    noEnd = startNoEnd ++ noStartNoEnd
+    parseModDot = cons <$> upperChar <*> many identChar <* string "."
+    parseUnqual =
+      choice
+        [ cons <$> lowerChar <*> many identChar
+        , cons <$> char '_' <*> some identChar
+        ]
+    identChar = alphaNumChar <|> char '_'
+    cons c cs = Text.pack (c : cs)

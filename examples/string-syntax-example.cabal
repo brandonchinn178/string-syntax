@@ -1,0 +1,75 @@
+cabal-version: 3.0
+
+name: string-syntax-example
+version: 0.1.0
+
+executable implicit-builder
+  hs-source-dirs: implicit-builder, shared
+  main-is: main.hs
+  other-modules: Lib, SqlQuery
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF implicit-builder
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text
+  default-language: GHC2021
+
+executable explicit
+  hs-source-dirs: explicit, shared
+  main-is: main.hs
+  other-modules: Lib, SqlQuery
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF explicit
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text
+  default-language: GHC2021
+
+executable implicit-only-string
+  hs-source-dirs: implicit-only-string
+  main-is: main.hs
+  other-modules: Lib
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF implicit-only-string
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text
+  default-language: GHC2021
+
+executable extensible-th
+  hs-source-dirs: extensible-th, shared
+  main-is: main.hs
+  other-modules: Lib, SqlQuery
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF extensible-th
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , template-haskell
+    , text
+  default-language: GHC2021
+
+executable extensible-hasclass
+  hs-source-dirs: extensible-hasclass, shared
+  main-is: main.hs
+  other-modules: Lib, SqlQuery
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF extensible-hasclass
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text
+  default-language: GHC2021

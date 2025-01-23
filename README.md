@@ -1,60 +1,186 @@
 # string-syntax
 
-[![](https://img.shields.io/github/actions/workflow/status/brandonchinn178/string-syntax/ci.yml?branch=main)](https://github.com/brandonchinn178/string-syntax/actions)
-[![](https://img.shields.io/hackage/v/string-syntax)](https://hackage.haskell.org/package/string-syntax)
+Prototype for String Interpolation ([proposal](https://github.com/ghc-proposals/ghc-proposals/pull/570)). Not meant for production usage, but can be used to try out different implementations.
 
-A preprocessor for enabling string-related syntax features, including:
-* Multiline strings ([GHC proposal](https://github.com/ghc-proposals/ghc-proposals/pull/569))
-* String interpolation ([GHC proposal](https://github.com/ghc-proposals/ghc-proposals/pull/570))
-* TODO: raw strings?
+Run the examples!
+
+```bash
+# `cabal run` also works
+stack run implicit-builder
+stack run explicit
+stack run implicit-only-string
+stack run extensible-th
+stack run extensible-hasclass
+```
 
 ## Usage
 
-### Multiline strings
+In your `cabal.project` file:
 
-```hs
-s :: String
-s =
-  """
-  This is the first line
-  This is another line
-  """
+```cabal
+source-repository-package
+  type: git
+  location: https://github.com/brandonchinn178/string-syntax
+  tag: main
 ```
 
-### Interpolated strings
+In your `.cabal` file:
 
-```hs
-import qualified Data.String.Syntax.Interpolate as StringSyntax
-
-x, y :: Int
-(x, y) = (1, 2)
-
-s1 :: String
-s1 = s"Result: ${x + y}"
-
--- works with multiline strings
-s2 :: String
-s2 =
-  s"""
-  x: ${x}
-  y: ${y}
-  Result: ${x + y}
-  """
+```cabal
+ghc-options: -F -pgmF string-syntax -optF <mode>
+build-tool-depends: string-syntax:string-syntax
+build-depends: string-syntax
 ```
 
-## Troubleshooting
+See below for available modes.
 
-### `Ambiguous type variable arising from a use of interpolatePrec` + `Overlapping instances for StringSyntax.InterpolateValue a0 String`
+### Limitations
 
-This can happen if you nest an interpolated string inside of another, since the compiler is unable to infer the type of the inner interpolation:
+The following are limitations of the prototype. These will be resolved when implementing in GHC, but implementing these would be more work than it's worth.
 
+* Interpolated expressions cannot include the closing brace character (`}`)
+    * This means that nested interpolated expressions are not supported
+* Interpolated expressions must be valid Haskell
+* String gaps aren't supported
+* Errors don't show the correct line, since lines may be shifted in the preprocessor
+
+## Mode
+
+### `implicit-builder`
+
+This mode will desugar interpolated strings as:
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+fromBuilder . mconcat $
+  [ toBuilder (fromString "a ")
+  , interpolate x
+  , toBuilder (fromString " b")
+  ]
 ```
-interpolatePrec 0 (interpolatePrec 0 x)
-                   ^^^^^^^^^^^^^^^^^^^
+
+This mode uses the following definitions, which are exported from `Data.String.Syntax.ImplicitBuilder` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+class Buildable s where
+  type Builder s = b | b -> s
+  toBuilder :: s -> Builder s
+  fromBuilder :: Builder s -> s
+
+class Interpolate a s where
+  interpolate :: a -> Builder s
 ```
 
-To fix this, simply add an explicit type annotation:
+### `explicit`
 
+This mode will desugar interpolated strings as:
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+mconcat
+  [ fromString "a "
+  , x
+  , fromString " b"
+  ]
 ```
-s"Interpolated: ${s"This is a nested interpolation: ${x}" :: String}
+
+### `implicit-only-string`
+
+This mode will desugar interpolated strings as:
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+mconcat
+  [ fromString "a "
+  , fromString (interpolate x)
+  , fromString " b"
+  ]
+```
+
+This mode uses the following definition, which are exported from `Data.String.Syntax.ImplicitOnlyString` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+class Interpolate a where
+  interpolate :: a -> String
+```
+
+### `extensible-th`
+
+This mode behaves the same as `implicit-only-string`, except it would allow any possibly-qualified identifier as a delimiter (of which `s` is just one provided out of the box).
+
+The given identifier must be a function with the type `[Either String (Q Exp)] -> Q Exp`.
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+$(Data.String.Interpolate.s
+  [ Left "a "
+  , Right [| x |]
+  , Left " b"
+  ])
+
+-- Original
+sql"SELECT * FROM user WHERE name = ${name}"
+
+-- Desugared
+$(sql
+  [ Left "SELECT * FROM user WHERE name = "
+  , Right [| name |]
+  ])
+```
+
+This mode uses the following definitions, which are exported from `Data.String.Syntax.ExtensibleTH` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+class Interpolate a where
+  interpolate :: a -> String
+```
+
+### `extensible-hasclass`
+
+This mode behaves the same as `implicit-only-string`, except it would allow any possibly-qualified identifier as a delimiter (of which `s` is just one provided out of the box).
+
+The given identifier must be a function with the type `[Either String (HasClass c)] -> a`.
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+--   s :: [Either String (HasClass Interpolate)] -> String
+Data.String.Interpolate.s
+  [ Left "a "
+  , Right (HasClass x)
+  , Left " b"
+  ]
+
+-- Original
+sql"SELECT * FROM user WHERE name = ${name}"
+
+-- Desugared
+--   sql :: [Either String (HasClass ToSql)] -> SqlQuery
+sql
+  [ Left "SELECT * FROM user WHERE name = "
+  , Right (HasClass name)
+  ]
+```
+
+This mode uses the following definitions, which are exported from `Data.String.Syntax.ExtensibleHasClass` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+class Interpolate a where
+  interpolate :: a -> String
+
+data HasClass c = forall a. c a => HasClass a
 ```
