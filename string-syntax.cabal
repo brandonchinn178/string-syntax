@@ -29,6 +29,7 @@ library
       Data.String.Syntax.ExtensibleHasClass
       Data.String.Syntax.ExtensibleTH
       Data.String.Syntax.ImplicitBuilder
+      Data.String.Syntax.ImplicitNoBuilder
       Data.String.Syntax.ImplicitOnlyString
       Data.String.Syntax.Internal.Parse
   other-modules:
