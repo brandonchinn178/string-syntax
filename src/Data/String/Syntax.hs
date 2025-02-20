@@ -109,6 +109,15 @@ allModes =
       , processExpr = \expr -> "XX.fromString (XX.interpolate (" <> expr <> "))"
       }
   , InterpolationMode
+      { name = "implicit-no-builder"
+      , autoModules = ["Data.String.Syntax.ImplicitNoBuilder"]
+      , autoLangExts = []
+      , delimMarker = OnlyDelim "s"
+      , postProcess = \_ exprs -> "mconcat " <> exprs
+      , processRaw = showT
+      , processExpr = \expr -> "(XX.interpolate (" <> expr <> "))"
+      }
+  , InterpolationMode
       { name = "extensible-th"
       , autoModules = ["Data.String.Syntax.ExtensibleTH"]
       , autoLangExts = ["TemplateHaskell"]
