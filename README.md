@@ -9,6 +9,7 @@ Run the examples!
 stack run implicit-builder
 stack run explicit
 stack run implicit-only-string
+stack run implicit-no-builder
 stack run extensible-th
 stack run extensible-hasclass
 ```
@@ -183,4 +184,39 @@ class Interpolate a where
   interpolate :: a -> String
 
 data HasClass c = forall a. c a => HasClass a
+```
+
+### `implicit-no-builder`
+
+This mode will desugar interpolated strings as:
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+mconcat $
+  [ fromString "a "
+  , interpolate x
+  , fromString " b"
+  ]
+```
+
+This mode uses the following definitions, which are exported from `Data.String.Syntax.ImplicitNoBuilder` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+
+class Interpolate a s where
+  interpolate :: a -> s
+```
+
+It is similar to `implicit-builder` in power but should lead less and simpler error messages. The presence of builder and code equivalent to `from Builder . toBuilder` can generate ambiguous type errors. Those errors disappear if there is no builder.
+
+If a builder needs to be used, it can be so by creating `IsString` and `Interpolate` instance for the 
+Thus, the sql query example in `extensible-hasclass` (as any other [Either a b] builder) can be achieved. (see corresponding example file.
+
+```haskell
+
+class Interpolate a s where
+  interpolate :: a -> s
 ```

@@ -73,3 +73,17 @@ executable extensible-hasclass
     , string-syntax
     , text
   default-language: GHC2021
+
+executable implicit-no-builder
+  hs-source-dirs: implicit-no-builder, shared
+  main-is: main.hs
+  other-modules: Lib, SqlQuery
+  ghc-options:
+    -Wall -Wcompat
+    -F -pgmF string-syntax -optF implicit-no-builder
+  build-tool-depends: string-syntax:string-syntax
+  build-depends:
+      base >=4.14 && <5
+    , string-syntax
+    , text
+  default-language: GHC2021
