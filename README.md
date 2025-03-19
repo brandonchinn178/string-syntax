@@ -45,7 +45,16 @@ The following are limitations of the prototype. These will be resolved when impl
 * String gaps aren't supported
 * Errors don't show the correct line, since lines may be shifted in the preprocessor
 
-## Mode
+## Add a new mode
+
+To add a new mode, open a PR with the following changes:
+
+1. New mode added to `allModes`
+1. Add an example in `examples/`
+1. Add a new section below under "Available modes"
+1. Update the "Run the examples" code block above
+
+## Available modes
 
 ### `implicit-builder`
 
@@ -91,6 +100,8 @@ mconcat
   ]
 ```
 
+This mode is "explicit" because it forces the user to explicitly convert everything to the String-like type.
+
 ### `implicit-only-string`
 
 This mode will desugar interpolated strings as:
@@ -113,6 +124,35 @@ This mode uses the following definition, which are exported from `Data.String.Sy
 class Interpolate a where
   interpolate :: a -> String
 ```
+
+This mode forgoes the complexity in `implicit-builder` with a multi-param `Interpolate` class by forcing all interpolations to go through `String`. It opts for simplicity at the cost of unsupporting use-cases like auto-escaping SQL queries.
+
+### `implicit-no-builder`
+
+This mode will desugar interpolated strings as:
+
+```haskell
+-- Original
+s"a ${x} b"
+
+-- Desugared
+mconcat
+  [ fromString "a "
+  , interpolate x
+  , fromString " b"
+  ]
+```
+
+This mode uses the following definitions, which are exported from `Data.String.Syntax.ImplicitNoBuilder` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
+
+```haskell
+class Interpolate a s where
+  interpolate :: a -> s
+```
+
+It is similar to `implicit-builder` in power but should lead to less and simpler error messages. The presence of builder and code equivalent to `from Builder . toBuilder` can generate ambiguous type errors. Those errors disappear if there is no builder.
+
+If a builder needs to be used, it can be so by creating `IsString` and `Interpolate` instances for the builder type.
 
 ### `extensible-th`
 
@@ -147,6 +187,8 @@ This mode uses the following definitions, which are exported from `Data.String.S
 class Interpolate a where
   interpolate :: a -> String
 ```
+
+If this mode is accepted, `-XStringInterpolation` would imply `-XTemplateHaskell`. The benefit of this mode is string interpolation can run at compile-time, which also makes this mode the most powerful/general of all the options. Indeed, every other mode could be implemented in terms of `extensible-th`.
 
 ### `extensible-hasclass`
 
@@ -186,37 +228,4 @@ class Interpolate a where
 data HasClass c = forall a. c a => HasClass a
 ```
 
-### `implicit-no-builder`
-
-This mode will desugar interpolated strings as:
-
-```haskell
--- Original
-s"a ${x} b"
-
--- Desugared
-mconcat $
-  [ fromString "a "
-  , interpolate x
-  , fromString " b"
-  ]
-```
-
-This mode uses the following definitions, which are exported from `Data.String.Syntax.ImplicitNoBuilder` (would be exported from `Data.String.Interpolate.Experimental` if the proposal is accepted).
-
-```haskell
-
-class Interpolate a s where
-  interpolate :: a -> s
-```
-
-It is similar to `implicit-builder` in power but should lead less and simpler error messages. The presence of builder and code equivalent to `from Builder . toBuilder` can generate ambiguous type errors. Those errors disappear if there is no builder.
-
-If a builder needs to be used, it can be so by creating `IsString` and `Interpolate` instance for the 
-Thus, the sql query example in `extensible-hasclass` (as any other [Either a b] builder) can be achieved. (see corresponding example file.
-
-```haskell
-
-class Interpolate a s where
-  interpolate :: a -> s
-```
+This mode is similar to `extensible-th`, but trades power for simplicity, providing string interpolation without including any baggage from Template Haskell.
