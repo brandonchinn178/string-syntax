@@ -229,3 +229,12 @@ data HasClass c = forall a. c a => HasClass a
 ```
 
 This mode is similar to `extensible-th`, but trades power for simplicity, providing string interpolation without including any baggage from Template Haskell.
+
+If someone wants compile-time interpolation, they could do so with
+
+```haskell
+-- foo :: [Either String (HasClass Foo)] -> Q Exp
+$(foo"a ${x} b")
+```
+
+In the future, if we see this become a common pattern, we could allow dropping the parens like `$foo"a ${x} b"`
